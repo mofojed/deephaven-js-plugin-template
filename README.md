@@ -52,7 +52,24 @@ Export a `AuthPlugin` from a module to register an Auth Plugin. Auth plugin can 
 - Can the RefreshToken storage be part of the plugin flow somehow?
 - Enterprise vs. Community difference - Enterprise currently has a lot of stuff that [it gets/sets as part of the login process](https://github.com/deephaven-ent/iris/blob/0d9ee83b3ff8b02563781bc24776176fb8269178/web/client-ui/src/login/Login.jsx#L302). Some of this stuff is Enterprise specific (e.g. creating the `WorkspaceStorage` backed by PQ, need to have some way to initialize that - could still be the app level?)
 
-#### Example flow - User/Password login
+#### Example flow - Anonymous login
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant W as Web UI
+  participant S as Server
+  participant P as AnonymousPlugin
+  participant J as JS API
+  U->>W: Open app
+  W->>S: Load plugin modules
+  S-->>W: 
+  W->>P: Login
+  P->>J: client.login()
+  J-->>P: Login success
+  P-->>W: Login success
+```
+
+#### Example flow - Password login
 ```mermaid
 sequenceDiagram
   participant U as User
@@ -60,7 +77,7 @@ sequenceDiagram
   participant S as Server
   participant P as PasswordPlugin
   participant J as JS API
-  U->>W: Open login page
+  U->>W: Open app
   W->>S: Load plugin modules
   S-->>W: 
   W->>P: Login
@@ -79,6 +96,47 @@ sequenceDiagram
   deactivate P
 ```
 
+#### Example flow - Composite Password/Anonymous plugin
+Composite plugin gives the user the choice of logging in with a password or logging in anonymously
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant W as Web UI
+  participant S as Server
+  participant CP as CompositePlugin
+  participant AP as AnonymousPlugin
+  participant PP as PasswordPlugin
+  participant J as JS API
+  U->>W: Open app
+  W->>S: Load plugin modules
+  S-->>W: 
+  W->>CP: Login
+  activate CP
+    alt Password login  
+      activate PP
+        loop Until success
+          PP->>PP: Show Login UI
+          PP->>J: client.login(password)
+          alt Login success
+            J-->>PP: Login success
+          else Login failure
+            J-->>PP: Login failure
+            PP->>PP: Show login error
+          end
+        end
+        PP-->>CP: Login success
+      deactivate PP
+    else Anonymous login
+      activate AP
+        AP->>J: client.login(anonymous)
+        J-->>AP: Login success
+        AP-->>CP: Login success
+      deactivate AP
+    end
+    CP-->>W: Login success
+  deactivate CP
+```
+
 #### Example flow - Auth0 login
 Translation of flow from https://auth0.com/docs/get-started/authentication-and-authorization-flow/authorization-code-flow, showing which responsibilities login plugin handles
 ```mermaid
@@ -89,7 +147,7 @@ sequenceDiagram
   participant P as Auth0Plugin
   participant T as Auth0 Tenant
   participant J as JS API
-  U->>W: Open login page
+  U->>W: Open app
   W->>S: Load plugin modules
   S-->>W: 
   W->>P: Login
