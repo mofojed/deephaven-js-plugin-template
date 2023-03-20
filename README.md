@@ -51,6 +51,9 @@ Export a `AuthPlugin` from a module to register an Auth Plugin. Auth plugin can 
 - The plugin will have access to the client and redux store to update data as it sees fit (or pass back workspace data to be updated?)
 - Can the RefreshToken storage be part of the plugin flow somehow?
 - Enterprise vs. Community difference - Enterprise currently has a lot of stuff that [it gets/sets as part of the login process](https://github.com/deephaven-ent/iris/blob/0d9ee83b3ff8b02563781bc24776176fb8269178/web/client-ui/src/login/Login.jsx#L302). Some of this stuff is Enterprise specific (e.g. creating the `WorkspaceStorage` backed by PQ, need to have some way to initialize that - could still be the app level?)
+- What should we do if no login plugin is specified?
+  - Combine default plugin or just use preshared key plugin
+- Should Web UI be pulling the auth config values before passing it to plugin?
 
 #### Example flow - Anonymous login
 ```mermaid
@@ -65,6 +68,28 @@ sequenceDiagram
   S-->>W: 
   W->>P: Login
   P->>J: client.login()
+  J-->>P: Login success
+  P-->>W: Login success
+```
+
+#### Example flow - PresharedKeyPlugin
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant W as Web UI
+  participant S as Server
+  participant P as PresharedKeyPlugin
+  participant J as JS API
+  U->>W: Open app
+  W->>S: Load plugin modules
+  S-->>W: 
+  W->>P: Login
+  alt Key in query string
+    P->>J: client.login(key)
+  else Prompt user for key
+    P->>P: Display key prompt
+    P->>J: client.login(key)
+  end
   J-->>P: Login success
   P-->>W: Login success
 ```
